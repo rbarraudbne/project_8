@@ -1,11 +1,17 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Inscription – LITRevu{% endblock %}
 {% block content %}
-  <h1>Créer un compte</h1>
+<section class="card card--narrow" aria-labelledby="form-titre">
+  <img src="{% static 'img/logo.png' %}" alt="" width="120" height="115" class="auth__logo">
+  <h1 id="form-titre">Inscrivez-vous</h1>
   <form method="post" novalidate>
     {% csrf_token %}
     {% include 'authentication/_form_fields.html' %}
-    <button type="submit">S'inscrire</button>
+    <div class="actions">
+      <a href="{% url 'login' %}" class="btn btn--ghost" title="Retourner à la page de connexion">Retourner</a>
+      <button type="submit" class="btn btn--primary">S'inscrire</button>
+    </div>
   </form>
-  <p>Déjà inscrit·e ? <a href="{% url 'login' %}">Se connecter</a></p>
+</section>
 {% endblock %}

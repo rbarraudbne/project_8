@@ -1,11 +1,21 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Connexion – LITRevu{% endblock %}
 {% block content %}
-  <h1>Se connecter</h1>
-  <form method="post" novalidate>
-    {% csrf_token %}
-    {% include 'authentication/_form_fields.html' %}
-    <button type="submit">Se connecter</button>
-  </form>
-  <p>Pas encore de compte ? <a href="{% url 'signup' %}">Créer un compte</a></p>
+<div class="auth">
+  <section class="card auth__intro" aria-labelledby="intro-titre">
+    <img src="{% static 'img/logo.png' %}" alt="" width="180" height="173" class="auth__logo">
+    <h2 id="intro-titre" class="h2">Nouveau sur LITRevu ?</h2>
+    <p>Demandez des critiques sur vos lectures et lisez celles de vos amis.</p>
+    <a href="{% url 'signup' %}" class="btn btn--primary">Inscrivez-vous maintenant</a>
+  </section>
+  <section class="card auth__form" aria-labelledby="form-titre">
+    <h1 id="form-titre">Connectez-vous</h1>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% include 'authentication/_form_fields.html' %}
+      <button type="submit" class="btn btn--primary btn--block">Se connecter</button>
+    </form>
+  </section>
+</div>
 {% endblock %}

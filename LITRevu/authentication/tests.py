@@ -20,7 +20,7 @@ class AuthFlowTests(TestCase):
 
     def test_inscription_connecte_et_redirige(self):
         r = self.client.post(reverse('signup'), {
-            'username': 'rachelle', 'email': 'r@ex.fr',
+            'username': 'rachelle',
             'password1': PWD, 'password2': PWD})
         self.assertRedirects(r, reverse('home'))
         self.assertTrue(User.objects.filter(username='rachelle').exists())

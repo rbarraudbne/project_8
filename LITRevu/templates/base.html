@@ -4,31 +4,42 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}LITRevu{% endblock %}</title>
+  <link rel="icon" href="{% static 'img/logo.png' %}" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
   <a class="skip-link" href="#contenu">Aller au contenu principal</a>
-  <header>
-    <p class="brand">LITRevu</p>
-    <nav aria-label="Navigation principale">
-      <ul>
-        {% if user.is_authenticated %}
-          <li><a href="{% url 'home' %}">Accueil</a></li>
-          <li>
-            <form method="post" action="{% url 'logout' %}">
-              {% csrf_token %}
-              <button type="submit" class="link-button">Se déconnecter ({{ user.username }})</button>
-            </form>
-          </li>
-        {% else %}
-          <li><a href="{% url 'login' %}">Se connecter</a></li>
-          <li><a href="{% url 'signup' %}">Créer un compte</a></li>
-        {% endif %}
-      </ul>
-    </nav>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="{% url 'home' %}" title="LITRevu – retour à l'accueil">
+        <img src="{% static 'img/logo.png' %}" alt="LITRevu" width="56" height="54">
+      </a>
+      <nav aria-label="Navigation principale">
+        <ul class="nav">
+          {% if user.is_authenticated %}
+            <li><a href="{% url 'home' %}" {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>Flux</a></li>
+            <li>
+              <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--ghost">Se déconnecter <span class="nav__user">({{ user.username }})</span></button>
+              </form>
+            </li>
+          {% else %}
+            <li><a href="{% url 'login' %}" {% if request.resolver_match.url_name == 'login' %}aria-current="page"{% endif %}>Se connecter</a></li>
+            <li><a href="{% url 'signup' %}" class="btn btn--primary" {% if request.resolver_match.url_name == 'signup' %}aria-current="page"{% endif %}>S'inscrire</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
   </header>
-  <main id="contenu">
+  <main id="contenu" class="container">
     {% block content %}{% endblock %}
   </main>
+  <footer class="site-footer">
+    <p>© LITRevu – Demandez et partagez des critiques de livres et d'articles.</p>
+  </footer>
 </body>
 </html>
