@@ -1,0 +1,34 @@
+{% load static %}<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}LITRevu{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+  <a class="skip-link" href="#contenu">Aller au contenu principal</a>
+  <header>
+    <p class="brand">LITRevu</p>
+    <nav aria-label="Navigation principale">
+      <ul>
+        {% if user.is_authenticated %}
+          <li><a href="{% url 'home' %}">Accueil</a></li>
+          <li>
+            <form method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button type="submit" class="link-button">Se déconnecter ({{ user.username }})</button>
+            </form>
+          </li>
+        {% else %}
+          <li><a href="{% url 'login' %}">Se connecter</a></li>
+          <li><a href="{% url 'signup' %}">Créer un compte</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </header>
+  <main id="contenu">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
