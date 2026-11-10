@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Créer une critique – LITRevu{% endblock %}
+{% block content %}
+<section class="card card--form" aria-labelledby="titre">
+  <h1 id="titre">Créer une critique</h1>
+  <p class="lead">Publiez une critique sur un livre ou un article, sans attendre qu'on vous la demande.</p>
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    <fieldset class="group">
+      <legend>Livre / Article</legend>
+      {% include 'authentication/_form_fields.html' with form=ticket_form %}
+    </fieldset>
+    <fieldset class="group">
+      <legend>Critique</legend>
+      {% include 'reviews/_review_fields.html' with form=review_form %}
+    </fieldset>
+    <div class="actions">
+      <a href="{% url 'posts' %}" class="btn btn--ghost" title="Annuler et retourner à vos posts">Annuler</a>
+      <button type="submit" class="btn btn--primary">Envoyer</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

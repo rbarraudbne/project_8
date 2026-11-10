@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Vos posts – LITRevu{% endblock %}
+{% block content %}
+<h1>Vos posts</h1>
+<p class="actions actions--start">
+  <a href="{% url 'ticket_create' %}" class="btn btn--primary">Demander une critique</a>
+  <a href="{% url 'review_create_full' %}" class="btn btn--primary">Créer une critique</a>
+</p>
+{% for date, kind, obj in items %}
+  {% if kind == 'ticket' %}
+    {% include 'reviews/_ticket.html' with ticket=obj %}
+    <div class="post__actions">
+      <a class="btn btn--ghost" href="{% url 'ticket_update' obj.pk %}" title="Modifier le billet « {{ obj.title }} »">Modifier<span class="visually-hidden"> le billet « {{ obj.title }} »</span></a>
+      <a class="btn btn--danger" href="{% url 'ticket_delete' obj.pk %}" title="Supprimer le billet « {{ obj.title }} »">Supprimer<span class="visually-hidden"> le billet « {{ obj.title }} »</span></a>
+    </div>
+  {% else %}
+    {% include 'reviews/_review.html' with review=obj %}
+    <div class="post__actions">
+      <a class="btn btn--ghost" href="{% url 'review_update' obj.pk %}" title="Modifier la critique « {{ obj.headline }} »">Modifier<span class="visually-hidden"> la critique « {{ obj.headline }} »</span></a>
+      <a class="btn btn--danger" href="{% url 'review_delete' obj.pk %}" title="Supprimer la critique « {{ obj.headline }} »">Supprimer<span class="visually-hidden"> la critique « {{ obj.headline }} »</span></a>
+    </div>
+  {% endif %}
+{% empty %}
+  <p class="lead">Vous n'avez encore rien publié.</p>
+{% endfor %}
+{% endblock %}

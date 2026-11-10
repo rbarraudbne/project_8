@@ -1,0 +1,13 @@
+{% load review_extras %}
+<article class="post" aria-label="Critique : {{ review.headline }}">
+  <header class="post__head">
+    <p class="post__meta">{% if review.user == request.user %}Vous avez{% else %}{{ review.user.username }} a{% endif %} publié une critique</p>
+    <time datetime="{{ review.time_created|date:'c' }}">{{ review.time_created|date:"H:i, j F Y" }}</time>
+  </header>
+  <h3 class="post__title">{{ review.headline }} <span class="post__rating">{{ review.rating|stars }}</span></h3>
+  {% if review.body %}<p>{{ review.body }}</p>{% endif %}
+  <div class="post__ticket">
+    <p class="post__meta">En réponse au billet de {% if review.ticket.user == request.user %}vous{% else %}{{ review.ticket.user.username }}{% endif %}</p>
+    <p><strong>{{ review.ticket.title }}</strong></p>
+  </div>
+</article>

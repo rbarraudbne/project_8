@@ -1,0 +1,22 @@
+{% if form.non_field_errors %}
+  <div class="errors" role="alert"><ul>{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
+{% endif %}
+<div class="field">
+  <label for="{{ form.headline.id_for_label }}">{{ form.headline.label }} <span class="required">(obligatoire)</span></label>
+  {{ form.headline }}
+  {% if form.headline.errors %}<ul class="errors" role="alert">{% for e in form.headline.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+</div>
+<fieldset class="field rating">
+  <legend>Note sur 5 <span class="required">(obligatoire)</span></legend>
+  <div class="rating__choices">
+    {% for radio in form.rating %}
+      <label for="{{ radio.id_for_label }}" class="rating__choice">{{ radio.tag }} <span>{{ radio.choice_label }}</span></label>
+    {% endfor %}
+  </div>
+  {% if form.rating.errors %}<ul class="errors" role="alert">{% for e in form.rating.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+</fieldset>
+<div class="field">
+  <label for="{{ form.body.id_for_label }}">{{ form.body.label }}</label>
+  {{ form.body }}
+  {% if form.body.errors %}<ul class="errors" role="alert">{% for e in form.body.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+</div>

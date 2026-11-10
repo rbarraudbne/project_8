@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Supprimer la critique – LITRevu{% endblock %}
+{% block content %}
+<section class="card card--form" aria-labelledby="titre">
+  <h1 id="titre">Supprimer cette critique ?</h1>
+  {% include 'reviews/_review.html' with review=review %}
+  <p class="warning">Cette action est définitive.</p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="actions">
+      <a href="{% url 'posts' %}" class="btn btn--ghost" title="Annuler et retourner à vos posts">Annuler</a>
+      <button type="submit" class="btn btn--danger">Confirmer la suppression</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

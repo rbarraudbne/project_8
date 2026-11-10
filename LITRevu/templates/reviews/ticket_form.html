@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}{% if edit %}Modifier votre billet{% else %}Créer un billet{% endif %} – LITRevu{% endblock %}
+{% block content %}
+<section class="card card--form" aria-labelledby="titre">
+  <h1 id="titre">{% if edit %}Modifier votre billet{% else %}Créer un billet{% endif %}</h1>
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% include 'authentication/_form_fields.html' %}
+    <div class="actions">
+      <a href="{% url 'posts' %}" class="btn btn--ghost" title="Annuler et retourner à vos posts">Annuler</a>
+      <button type="submit" class="btn btn--primary">Envoyer</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

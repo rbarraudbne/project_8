@@ -21,6 +21,7 @@
         <ul class="nav">
           {% if user.is_authenticated %}
             <li><a href="{% url 'home' %}" {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>Flux</a></li>
+            <li><a href="{% url 'posts' %}" {% if request.resolver_match.url_name == 'posts' %}aria-current="page"{% endif %}>Posts</a></li>
             <li>
               <form method="post" action="{% url 'logout' %}">
                 {% csrf_token %}
@@ -36,6 +37,11 @@
     </div>
   </header>
   <main id="contenu" class="container">
+    {% if messages %}
+      <div class="messages" role="status">
+        {% for message in messages %}<p class="message message--{{ message.tags }}">{{ message }}</p>{% endfor %}
+      </div>
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
   <footer class="site-footer">

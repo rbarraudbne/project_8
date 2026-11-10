@@ -3,4 +3,9 @@
 {% block content %}
 <h1>Bienvenue, {{ user.username }}</h1>
 <p class="lead">Votre flux de billets et de critiques apparaîtra ici.</p>
+<p class="actions actions--start">
+  <a href="{% url 'ticket_create' %}" class="btn btn--primary">Demander une critique</a>
+  <a href="{% url 'review_create_full' %}" class="btn btn--primary">Créer une critique</a>
+  <a href="{% url 'posts' %}" class="btn btn--ghost">Voir vos posts</a>
+</p>
 {% endblock %}

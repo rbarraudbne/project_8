@@ -1,0 +1,10 @@
+{% load review_extras %}
+<article class="post" aria-label="Billet : {{ ticket.title }}">
+  <header class="post__head">
+    <p class="post__meta">{% if ticket.user == request.user %}Vous avez{% else %}{{ ticket.user.username }} a{% endif %} demandé une critique</p>
+    <time datetime="{{ ticket.time_created|date:'c' }}">{{ ticket.time_created|date:"H:i, j F Y" }}</time>
+  </header>
+  <h3 class="post__title">{{ ticket.title }}</h3>
+  {% if ticket.description %}<p>{{ ticket.description }}</p>{% endif %}
+  {% if ticket.image %}<img class="post__img" src="{{ ticket.image.url }}" alt="Illustration du billet « {{ ticket.title }} »">{% endif %}
+</article>
