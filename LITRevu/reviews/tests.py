@@ -210,6 +210,7 @@ class ReviewCreateFullTests(ViewsBase):
         self.assertRedirects(r, reverse('posts'))
         ticket, review = Ticket.objects.get(), Review.objects.get()
         self.assertEqual((ticket.user, review.user, review.ticket), (self.a, self.a, ticket))
+        self.assertFalse(ticket.is_request)  # pas une demande de critique
 
     def test_rien_n_est_cree_si_un_formulaire_est_invalide(self):
         r = self.client.post(reverse('review_create_full'), self.data(**{'review-rating': 9}))
@@ -217,3 +218,73 @@ class ReviewCreateFullTests(ViewsBase):
         r = self.client.post(reverse('review_create_full'), self.data(**{'ticket-title': ''}))
         self.assertEqual(r.status_code, 200)
         self.assertEqual((Ticket.objects.count(), Review.objects.count()), (0, 0))
+
+
+class AuteurEtCritiqueSansDemandeTests(ViewsBase):
+    def full(self, **kw):
+        d = {'ticket-title': 'Livre', 'ticket-author': 'Moi', 'ticket-description': '',
+             'review-headline': 'Top', 'review-rating': 5, 'review-body': ''}
+        d.update(kw)
+        return d
+
+    def test_auteur_enregistre_sur_un_billet(self):
+        self.client.post(reverse('ticket_create'), {'title': 'La relativité', 'author': 'Albert Einstein'})
+        t = Ticket.objects.get()
+        self.assertEqual(t.author, 'Albert Einstein')
+        self.assertTrue(t.is_request)
+
+    def test_auteur_facultatif(self):
+        r = self.client.post(reverse('ticket_create'), {'title': 'Sans auteur'})
+        self.assertRedirects(r, reverse('posts'))
+
+    def test_auteur_affiche(self):
+        Ticket.objects.create(title='La relativité', author='Albert Einstein', user=self.a)
+        self.assertContains(self.client.get(reverse('posts')), 'de Albert Einstein')
+
+    def test_critique_seule_n_apparait_pas_comme_demande(self):
+        self.client.post(reverse('review_create_full'), self.full())
+        page = self.client.get(reverse('posts')).content.decode()
+        self.assertNotIn('demandé une critique', page)
+        self.assertNotIn('Modifier le billet', page)
+        self.assertIn('publié une critique', page)
+        self.assertIn('Ticket - Vous', page)
+        self.assertIn('de Moi', page)
+
+    def test_vraie_demande_toujours_affichee(self):
+        Ticket.objects.create(title='Demande', user=self.a)
+        self.assertContains(self.client.get(reverse('posts')), 'demandé une critique')
+
+    def test_on_ne_peut_pas_repondre_a_une_critique_seule(self):
+        self.client.post(reverse('review_create_full'), self.full())
+        ticket = Ticket.objects.get()
+        self.client.logout()
+        self.client.force_login(self.b)
+        UserFollows.objects.create(user=self.b, followed_user=self.a)
+        r = self.client.post(reverse('review_create', args=[ticket.pk]),
+                             {'headline': 'x', 'rating': 3})
+        self.assertRedirects(r, reverse('home'))
+        self.assertEqual(Review.objects.count(), 1)
+
+    def test_modifier_une_critique_seule_modifie_aussi_le_livre(self):
+        self.client.post(reverse('review_create_full'), self.full())
+        review = Review.objects.get()
+        url = reverse('review_update', args=[review.pk])
+        self.assertContains(self.client.get(url), 'Auteur')
+        r = self.client.post(url, {'ticket-title': 'Livre 2', 'ticket-author': 'Autre',
+                                   'review-headline': 'Top 2', 'review-rating': 3, 'review-body': ''})
+        self.assertRedirects(r, reverse('posts'))
+        review.refresh_from_db(); review.ticket.refresh_from_db()
+        self.assertEqual((review.headline, review.rating), ('Top 2', 3))
+        self.assertEqual((review.ticket.title, review.ticket.author), ('Livre 2', 'Autre'))
+
+    def test_supprimer_une_critique_seule_supprime_le_livre(self):
+        self.client.post(reverse('review_create_full'), self.full())
+        review = Review.objects.get()
+        self.client.post(reverse('review_delete', args=[review.pk]))
+        self.assertEqual((Review.objects.count(), Ticket.objects.count()), (0, 0))
+
+    def test_supprimer_une_reponse_garde_le_billet(self):
+        t = Ticket.objects.create(title='Billet', user=self.b)
+        rev = Review.objects.create(ticket=t, rating=3, headline='x', user=self.a)
+        self.client.post(reverse('review_delete', args=[rev.pk]))
+        self.assertEqual(Ticket.objects.count(), 1)

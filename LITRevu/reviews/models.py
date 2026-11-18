@@ -4,13 +4,20 @@ from django.db import models
 
 
 class Ticket(models.Model):
-    """Demande de critique pour un livre ou un article."""
+    """Livre ou article.
+
+    Si ``is_request`` est vrai, c'est un billet : une demande de critique visible
+    par les abonnés. Sinon, le livre/article a été créé en même temps qu'une
+    critique « à partir de zéro » et n'est pas affiché comme une demande.
+    """
 
     title = models.CharField(max_length=128)
+    author = models.CharField(max_length=128, blank=True)
     description = models.TextField(max_length=2048, blank=True)
     user = models.ForeignKey(
         to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     image = models.ImageField(null=True, blank=True, upload_to='tickets/')
+    is_request = models.BooleanField(default=True)
     time_created = models.DateTimeField(auto_now_add=True)
 
     class Meta:

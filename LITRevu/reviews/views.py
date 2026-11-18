@@ -4,17 +4,21 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
-from .forms import ReviewForm, TicketForm
+from .forms import ReviewForm, TicketForm, FollowForm
 from .models import Review, Ticket, UserFollows
 
 
 def can_review(user, ticket):
     """Peut-on répondre à ce billet ?
 
+    - c'est une vraie demande de critique (pas un livre saisi avec une critique) ;
     - c'est mon billet, ou celui d'un utilisateur que je suis ;
     - je n'ai pas déjà posté de critique sur ce billet.
     """
+    if not ticket.is_request:
+        return False
     allowed = ticket.user_id == user.id or UserFollows.objects.filter(
         user=user, followed_user=ticket.user).exists()
     already = Review.objects.filter(ticket=ticket, user=user).exists()
@@ -24,7 +28,7 @@ def can_review(user, ticket):
 @login_required
 def posts(request):
     """Mes billets et mes critiques, du plus récent au plus ancien."""
-    tickets = Ticket.objects.filter(user=request.user)
+    tickets = Ticket.objects.filter(user=request.user, is_request=True)
     reviews = Review.objects.filter(user=request.user).select_related('ticket', 'ticket__user')
     items = sorted(
         chain(
@@ -93,19 +97,40 @@ def review_create(request, ticket_id):
 @login_required
 def review_update(request, review_id):
     review = get_object_or_404(Review, pk=review_id, user=request.user)
+    ticket = review.ticket
+    if not ticket.is_request:
+        # Critique « à partir de zéro » : on modifie aussi le livre / article
+        return _review_update_full(request, review, ticket)
     form = ReviewForm(request.POST or None, instance=review)
     if request.method == 'POST' and form.is_valid():
         form.save()
         messages.success(request, 'Votre critique a été modifiée.')
         return redirect('posts')
-    return render(request, 'reviews/review_form.html', {'form': form, 'ticket': review.ticket, 'edit': True})
+    return render(request, 'reviews/review_form.html', {'form': form, 'ticket': ticket, 'edit': True})
+
+
+def _review_update_full(request, review, ticket):
+    ticket_form = TicketForm(request.POST or None, request.FILES or None,
+                             instance=ticket, prefix='ticket')
+    review_form = ReviewForm(request.POST or None, instance=review, prefix='review')
+    if request.method == 'POST' and ticket_form.is_valid() and review_form.is_valid():
+        with transaction.atomic():
+            ticket_form.save()
+            review_form.save()
+        messages.success(request, 'Votre critique a été modifiée.')
+        return redirect('posts')
+    return render(request, 'reviews/review_create_full.html', {
+        'ticket_form': ticket_form, 'review_form': review_form, 'edit': True})
 
 
 @login_required
 def review_delete(request, review_id):
     review = get_object_or_404(Review, pk=review_id, user=request.user)
     if request.method == 'POST':
+        ticket = review.ticket
         review.delete()
+        if not ticket.is_request:
+            ticket.delete()  # le livre saisi avec la critique n'a plus de raison d'exister
         messages.success(request, 'Votre critique a été supprimée.')
         return redirect('posts')
     return render(request, 'reviews/review_confirm_delete.html', {'review': review})
@@ -120,6 +145,7 @@ def review_create_full(request):
         with transaction.atomic():  # tout ou rien
             ticket = ticket_form.save(commit=False)
             ticket.user = request.user
+            ticket.is_request = False  # ce n'est pas une demande de critique
             ticket.save()
             review = review_form.save(commit=False)
             review.ticket = ticket
@@ -128,4 +154,31 @@ def review_create_full(request):
         messages.success(request, 'Votre critique a été publiée.')
         return redirect('posts')
     return render(request, 'reviews/review_create_full.html', {
-        'ticket_form': ticket_form, 'review_form': review_form})
+        'ticket_form': ticket_form, 'review_form': review_form, 'edit': False})
+
+# --- Abonnements -------------------------------------------------------
+
+@login_required
+def follows(request):
+    """Suivre un utilisateur, voir ses abonnements et ses abonnés."""
+    form = FollowForm(request.POST or None, user=request.user)
+    if request.method == 'POST' and form.is_valid():
+        UserFollows.objects.create(user=request.user, followed_user=form.followed_user)
+        messages.success(request, f'Vous suivez maintenant {form.followed_user.username}.')
+        return redirect('follows')
+    following = (UserFollows.objects.filter(user=request.user)
+                 .select_related('followed_user').order_by('followed_user__username'))
+    followers = (UserFollows.objects.filter(followed_user=request.user)
+                 .select_related('user').order_by('user__username'))
+    return render(request, 'reviews/follows.html', {
+        'form': form, 'following': following, 'followers': followers})
+
+
+@login_required
+@require_POST
+def unfollow(request, follow_id):
+    # user=request.user : on ne peut supprimer que ses propres abonnements
+    follow = get_object_or_404(UserFollows, pk=follow_id, user=request.user)
+    follow.delete()
+    messages.success(request, f'Vous ne suivez plus {follow.followed_user.username}.')
+    return redirect('follows')

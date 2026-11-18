@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
-{% block title %}Créer une critique – LITRevu{% endblock %}
+{% block title %}{% if edit %}Modifier votre critique{% else %}Créer une critique{% endif %} – LITRevu{% endblock %}
 {% block content %}
 <section class="card card--form" aria-labelledby="titre">
-  <h1 id="titre">Créer une critique</h1>
-  <p class="lead">Publiez une critique sur un livre ou un article, sans attendre qu'on vous la demande.</p>
+  <h1 id="titre">{% if edit %}Modifier votre critique{% else %}Créer une critique{% endif %}</h1>
+  {% if not edit %}<p class="lead">Publiez une critique sur un livre ou un article, sans attendre qu'on vous la demande.</p>{% endif %}
   <form method="post" enctype="multipart/form-data" novalidate>
     {% csrf_token %}
     <fieldset class="group">

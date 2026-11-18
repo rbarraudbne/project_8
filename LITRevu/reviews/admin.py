@@ -5,9 +5,9 @@ from .models import Review, Ticket, UserFollows
 
 @admin.register(Ticket)
 class TicketAdmin(admin.ModelAdmin):
-    list_display = ('title', 'user', 'time_created')
-    list_filter = ('user',)
-    search_fields = ('title', 'description')
+    list_display = ('title', 'author', 'user', 'is_request', 'time_created')
+    list_filter = ('is_request', 'user')
+    search_fields = ('title', 'author', 'description')
     readonly_fields = ('time_created',)
 
 

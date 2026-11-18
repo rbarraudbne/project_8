@@ -7,7 +7,15 @@
   <h3 class="post__title">{{ review.headline }} <span class="post__rating">{{ review.rating|stars }}</span></h3>
   {% if review.body %}<p>{{ review.body }}</p>{% endif %}
   <div class="post__ticket">
-    <p class="post__meta">En réponse au billet de {% if review.ticket.user == request.user %}vous{% else %}{{ review.ticket.user.username }}{% endif %}</p>
-    <p><strong>{{ review.ticket.title }}</strong></p>
+    {% if review.ticket.is_request %}
+      <p class="post__meta">En réponse au billet de {% if review.ticket.user == request.user %}vous{% else %}{{ review.ticket.user.username }}{% endif %}</p>
+    {% else %}
+      <p class="post__meta">Ticket - Vous</p>
+    {% endif %}
+    <p class="post__book_title"><strong>{{ review.ticket.title }}</strong>{% if review.ticket.author %} <span class="post__author-inline">de {{ review.ticket.author }}</span>{% endif %}</p>
+    {% if not review.ticket.is_request %}
+      {% if review.ticket.description %}<p>{{ review.ticket.description }}</p>{% endif %}
+      {% if review.ticket.image %}<img class="post__img" src="{{ review.ticket.image.url }}" alt="Illustration de « {{ review.ticket.title }} »">{% endif %}
+    {% endif %}
   </div>
 </article>

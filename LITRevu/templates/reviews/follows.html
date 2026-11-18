@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Abonnements – LITRevu</div>
+{% endblock %}
+{% block content %}
+<div class="follow-page">
+<h1>Abonnements</h1>
+
+<section class="card card--form follow-section" aria-labelledby="suivre-titre">
+  <h2 id="suivre-titre" class="h2">Suivre d'autres utilisateurs</h2>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include 'authentication/_form_fields.html' %}
+    <button type="submit" class="btn btn--primary">Suivre</button>
+  </form>
+</section>
+
+<section class="card card--form follow-section" aria-labelledby="suivis-titre">
+  <h2 id="suivis-titre" class="h2">Abonnements</h2>
+  {% if following %}
+    <ul class="follow-list">
+      {% for follow in following %}
+        <li>
+          <span class="follow-list__name">{{ follow.followed_user.username }}</span>
+          <form method="post" action="{% url 'unfollow' follow.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn--danger" title="Se désabonner de {{ follow.followed_user.username }}">Désabonner<span class="visually-hidden"> {{ follow.followed_user.username }}</span></button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="lead">Vous ne suivez encore personne.</p>
+  {% endif %}
+</section>
+
+<section class="card card--form follow-section" aria-labelledby="abonnes-titre">
+  <h2 id="abonnes-titre" class="h2">Abonnés</h2>
+  {% if followers %}
+    <ul class="follow-list">
+      {% for follow in followers %}
+        <li><span class="follow-list__name">{{ follow.user.username }}</span></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="lead">Personne ne vous suit pour le moment.</p>
+  {% endif %}
+</section>
+</div>
+{% endblock %}

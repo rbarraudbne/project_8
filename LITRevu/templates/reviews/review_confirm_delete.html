@@ -4,7 +4,7 @@
 <section class="card card--form" aria-labelledby="titre">
   <h1 id="titre">Supprimer cette critique ?</h1>
   {% include 'reviews/_review.html' with review=review %}
-  <p class="warning">Cette action est définitive.</p>
+  <p class="warning">Cette action est définitive.{% if not review.ticket.is_request %} Le livre / article saisi avec cette critique sera aussi supprimé.{% endif %}</p>
   <form method="post">
     {% csrf_token %}
     <div class="actions">
