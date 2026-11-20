@@ -1,11 +1,13 @@
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path
 
+from reviews.views import feed
+
 from . import views
 from .forms import LoginForm
 
 urlpatterns = [
-    path('', views.home, name='home'),
+    path('', feed, name='home'),
     path('connexion/', LoginView.as_view(
         template_name='authentication/login.html',
         authentication_form=LoginForm,
@@ -13,3 +15,4 @@ urlpatterns = [
     path('deconnexion/', LogoutView.as_view(), name='logout'),
     path('inscription/', views.signup, name='signup'),
 ]
+

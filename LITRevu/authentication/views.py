@@ -14,8 +14,3 @@ def signup(request):
         login(request, user)  # connexion automatique après inscription
         return redirect('home')
     return render(request, 'authentication/signup.html', {'form': form})
-
-
-@login_required
-def home(request):
-    return render(request, 'home.html')

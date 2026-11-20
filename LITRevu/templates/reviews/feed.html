@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Flux – LITRevu{% endblock %}
+{% block content %}
+<h1>Flux</h1>
+<p class="actions actions--start">
+  <a href="{% url 'ticket_create' %}" class="btn btn--primary">Demander une critique</a>
+  <a href="{% url 'review_create_full' %}" class="btn btn--primary">Créer une critique</a>
+</p>
+
+{% for date, kind, obj, can_reply in items %}
+  {% if kind == 'ticket' %}
+    {% include 'reviews/_ticket.html' with ticket=obj %}
+    {% if can_reply %}
+      <div class="post__actions">
+        <a class="btn btn--primary" href="{% url 'review_create' obj.pk %}" title="Créer une critique en réponse au billet « {{ obj.title }} »">Créer une critique<span class="visually-hidden"> en réponse au billet « {{ obj.title }} »</span></a>
+      </div>
+    {% else %}
+      <div class="post__actions"></div>
+    {% endif %}
+  {% else %}
+    {% include 'reviews/_review.html' with review=obj %}
+    <div class="post__actions"></div>
+  {% endif %}
+{% empty %}
+  <section class="card card--form" aria-labelledby="vide-titre">
+    <h2 id="vide-titre" class="h2">Votre flux est vide</h2>
+    <p>Demandez une critique, publiez la vôtre, ou <a href="{% url 'follows' %}" title="Aller à la page des abonnements">suivez d'autres utilisateurs</a> pour voir leurs publications ici.</p>
+  </section>
+{% endfor %}
+{% endblock %}

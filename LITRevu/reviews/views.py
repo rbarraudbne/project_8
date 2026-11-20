@@ -3,10 +3,11 @@ from itertools import chain
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .forms import ReviewForm, TicketForm, FollowForm
+from .forms import FollowForm, ReviewForm, TicketForm
 from .models import Review, Ticket, UserFollows
 
 
@@ -156,6 +157,7 @@ def review_create_full(request):
     return render(request, 'reviews/review_create_full.html', {
         'ticket_form': ticket_form, 'review_form': review_form, 'edit': False})
 
+
 # --- Abonnements -------------------------------------------------------
 
 @login_required
@@ -182,3 +184,35 @@ def unfollow(request, follow_id):
     follow.delete()
     messages.success(request, f'Vous ne suivez plus {follow.followed_user.username}.')
     return redirect('follows')
+
+
+# --- Flux --------------------------------------------------------------
+
+@login_required
+def feed(request):
+    """Page d'accueil : billets et critiques à afficher pour l'utilisateur connecté.
+
+    - billets (demandes) : les miens et ceux des utilisateurs que je suis ;
+    - critiques : les miennes, celles des utilisateurs que je suis, et toutes
+      celles qui répondent à l'un de mes billets (même d'un utilisateur non suivi).
+    Le tout du plus récent au plus ancien.
+    """
+    me = request.user
+    followed_ids = UserFollows.objects.filter(user=me).values_list('followed_user_id', flat=True)
+
+    tickets = (Ticket.objects
+               .filter(is_request=True)
+               .filter(Q(user=me) | Q(user_id__in=followed_ids))
+               .select_related('user'))
+    reviews = (Review.objects
+               .filter(Q(user=me) | Q(user_id__in=followed_ids) | Q(ticket__user=me))
+               .select_related('user', 'ticket', 'ticket__user'))
+
+    already_reviewed = set(Review.objects.filter(user=me).values_list('ticket_id', flat=True))
+    items = sorted(
+        chain(
+            ((t.time_created, 'ticket', t, t.pk not in already_reviewed) for t in tickets),
+            ((r.time_created, 'review', r, False) for r in reviews),
+        ),
+        key=lambda item: item[0], reverse=True)
+    return render(request, 'reviews/feed.html', {'items': items})
