@@ -16,13 +16,13 @@ def can_review(user, ticket):
 
     - c'est une vraie demande de critique (pas un livre saisi avec une critique) ;
     - c'est mon billet, ou celui d'un utilisateur que je suis ;
-    - je n'ai pas déjà posté de critique sur ce billet.
+    - aucune critique n'a encore été postée en réponse à ce billet (par personne).
     """
     if not ticket.is_request:
         return False
     allowed = ticket.user_id == user.id or UserFollows.objects.filter(
         user=user, followed_user=ticket.user).exists()
-    already = Review.objects.filter(ticket=ticket, user=user).exists()
+    already = Review.objects.filter(ticket=ticket).exists()
     return allowed and not already
 
 
@@ -208,7 +208,9 @@ def feed(request):
                .filter(Q(user=me) | Q(user_id__in=followed_ids) | Q(ticket__user=me))
                .select_related('user', 'ticket', 'ticket__user'))
 
-    already_reviewed = set(Review.objects.filter(user=me).values_list('ticket_id', flat=True))
+    # billets qui ont déjà reçu au moins une critique (de n'importe qui)
+    already_reviewed = set(
+        Review.objects.filter(ticket__in=tickets).values_list('ticket_id', flat=True))
     items = sorted(
         chain(
             ((t.time_created, 'ticket', t, t.pk not in already_reviewed) for t in tickets),

@@ -76,3 +76,37 @@ class FeedTests(TestCase):
         # le billet n'est même pas dans le flux
         t = Ticket.objects.create(title='Billet inconnu', user=self.inconnu)
         self.assertNotContains(self.feed(), reverse('review_create', args=[t.pk]))
+
+class BoutonReponseTests(TestCase):
+    """Le bouton « Créer une critique » disparaît dès qu'une critique existe sur le billet."""
+
+    def setUp(self):
+        self.me = User.objects.create_user('moi', password='x')
+        self.ami = User.objects.create_user('ami', password='x')
+        self.autre = User.objects.create_user('autre', password='x')
+        UserFollows.objects.create(user=self.me, followed_user=self.ami)
+        UserFollows.objects.create(user=self.autre, followed_user=self.ami)
+        self.ticket = Ticket.objects.create(title='Billet ami', user=self.ami)
+        self.url = reverse('review_create', args=[self.ticket.pk])
+        self.client.force_login(self.me)
+
+    def test_bouton_visible_sans_critique(self):
+        self.assertContains(self.client.get(reverse('home')), self.url)
+
+    def test_bouton_masque_si_quelqu_un_d_autre_a_deja_repondu(self):
+        Review.objects.create(ticket=self.ticket, rating=4, headline='Déjà là', user=self.autre)
+        r = self.client.get(reverse('home'))
+        self.assertNotContains(r, self.url)
+        self.assertContains(r, 'Billet ami')  # le billet reste visible
+
+    def test_reponse_refusee_cote_serveur_si_deja_repondu(self):
+        Review.objects.create(ticket=self.ticket, rating=4, headline='Déjà là', user=self.autre)
+        r = self.client.post(self.url, {'headline': 'Moi aussi', 'rating': 3})
+        self.assertRedirects(r, reverse('home'))
+        self.assertEqual(Review.objects.filter(ticket=self.ticket).count(), 1)
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+
+    def test_bouton_reapparait_si_la_critique_est_supprimee(self):
+        rev = Review.objects.create(ticket=self.ticket, rating=4, headline='Temp', user=self.autre)
+        rev.delete()
+        self.assertContains(self.client.get(reverse('home')), self.url)
