@@ -1,9 +1,12 @@
-from django.test import TestCase
+import tempfile
+from io import BytesIO
 
-# Create your tests here.
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from django.urls import reverse
+from PIL import Image
 
 from .models import Review, Ticket, UserFollows
 
@@ -17,7 +20,8 @@ class ModelsTests(TestCase):
 
     def test_ticket_et_review(self):
         t = Ticket.objects.create(title='La relativité', user=self.a)
-        Review.objects.create(ticket=t, rating=5, headline='Top', user=self.b)
+        Review.objects.create(
+            ticket=t, rating=5, headline='Top', user=self.b)
         self.assertEqual(t.review_set.count(), 1)
 
     def test_follow_unique(self):
@@ -31,46 +35,58 @@ class AdminTests(TestCase):
     """Vérifie que les modèles sont utilisables depuis l'admin Django."""
 
     def setUp(self):
-        self.admin = User.objects.create_superuser('admin', 'a@ex.fr', 'x-Admin-4242')
+        self.admin = User.objects.create_superuser(
+            'admin',
+            'a@ex.fr',
+            'x-Admin-4242'
+        )
         self.client.force_login(self.admin)
         self.other = User.objects.create_user('b', password='x')
 
     def test_pages_liste_et_ajout(self):
         for model in ('ticket', 'review', 'userfollows'):
             for page in ('changelist', 'add'):
-                url = f'/admin/reviews/{model}/' + ('' if page == 'changelist' else 'add/')
+                url = f'/admin/reviews/{model}/'
+                if page == 'add':
+                    url += 'add/'
                 self.assertEqual(self.client.get(url).status_code, 200, url)
 
     def test_creer_ticket_puis_critique_via_admin(self):
         r = self.client.post('/admin/reviews/ticket/add/', {
-            'title': 'La relativité', 'description': 'Avis ?', 'user': self.admin.pk})
+            'title': 'La relativité',
+            'description': 'Avis ?',
+            'user': self.admin.pk,
+        })
         self.assertEqual(r.status_code, 302)
         ticket = Ticket.objects.get()
         r = self.client.post('/admin/reviews/review/add/', {
-            'ticket': ticket.pk, 'rating': 4, 'headline': 'Excellent',
-            'body': '', 'user': self.other.pk})
+            'ticket': ticket.pk,
+            'rating': 4,
+            'headline': 'Excellent',
+            'body': '',
+            'user': self.other.pk,
+        })
         self.assertEqual(r.status_code, 302)
         self.assertEqual(ticket.review_set.get().rating, 4)
 
     def test_note_hors_limites_refusee(self):
         t = Ticket.objects.create(title='T', user=self.admin)
         r = self.client.post('/admin/reviews/review/add/', {
-            'ticket': t.pk, 'rating': 6, 'headline': 'x', 'user': self.other.pk})
-        self.assertEqual(r.status_code, 200)  # formulaire réaffiché avec erreur
+            'ticket': t.pk,
+            'rating': 6,
+            'headline': 'x',
+            'user': self.other.pk,
+        })
+        self.assertEqual(r.status_code, 200)
         self.assertEqual(Review.objects.count(), 0)
 
     def test_abonnement_via_admin(self):
         r = self.client.post('/admin/reviews/userfollows/add/', {
-            'user': self.admin.pk, 'followed_user': self.other.pk})
+            'user': self.admin.pk,
+            'followed_user': self.other.pk,
+        })
         self.assertEqual(r.status_code, 302)
         self.assertEqual(self.admin.following.count(), 1)
-
-
-# --- Étape 4 : vues billets / critiques -------------------------------------
-from django.urls import reverse
-from django.core.files.uploadedfile import SimpleUploadedFile
-import tempfile
-from django.test import override_settings
 
 
 class ViewsBase(TestCase):
@@ -83,27 +99,41 @@ class ViewsBase(TestCase):
 class TicketViewsTests(ViewsBase):
     def test_anonyme_redirige_vers_connexion(self):
         self.client.logout()
-        for name, args in (('posts', ()), ('ticket_create', ()), ('ticket_update', (1,)),
-                           ('ticket_delete', (1,)), ('review_create', (1,))):
+        pages = (
+            ('posts', ()),
+            ('ticket_create', ()),
+            ('ticket_update', (1,)),
+            ('ticket_delete', (1,)),
+            ('review_create', (1,)),
+        )
+        for name, args in pages:
             r = self.client.get(reverse(name, args=args))
             self.assertEqual(r.status_code, 302, name)
             self.assertIn(reverse('login'), r.headers['Location'])
 
     def test_creation(self):
-        r = self.client.post(reverse('ticket_create'), {'title': 'Livre', 'description': 'Avis ?'})
+        r = self.client.post(
+            reverse('ticket_create'),
+            {'title': 'Livre', 'description': 'Avis ?'}
+        )
         self.assertRedirects(r, reverse('posts'))
         t = Ticket.objects.get()
         self.assertEqual(t.user, self.a)
 
     def test_creation_avec_image(self):
-        from io import BytesIO
-        from PIL import Image
-        buf = BytesIO(); Image.new('RGB', (4, 4)).save(buf, 'PNG')
-        with tempfile.TemporaryDirectory() as tmp, override_settings(MEDIA_ROOT=tmp):
-            f = SimpleUploadedFile('c.png', buf.getvalue(), content_type='image/png')
-            r = self.client.post(reverse('ticket_create'), {'title': 'Livre', 'image': f})
-            self.assertRedirects(r, reverse('posts'))
-            self.assertTrue(Ticket.objects.get().image.name.startswith('tickets/'))
+        buf = BytesIO()
+        Image.new('RGB', (4, 4)).save(buf, 'PNG')
+        with tempfile.TemporaryDirectory() as tmp:
+            with override_settings(MEDIA_ROOT=tmp):
+                f = SimpleUploadedFile(
+                    'c.png', buf.getvalue(), content_type='image/png')
+                r = self.client.post(
+                    reverse('ticket_create'),
+                    {'title': 'Livre', 'image': f}
+                )
+                self.assertRedirects(r, reverse('posts'))
+                ticket = Ticket.objects.get()
+                self.assertTrue(ticket.image.name.startswith('tickets/'))
 
     def test_titre_obligatoire(self):
         r = self.client.post(reverse('ticket_create'), {'title': ''})
@@ -112,25 +142,30 @@ class TicketViewsTests(ViewsBase):
 
     def test_modification(self):
         t = Ticket.objects.create(title='Ancien', user=self.a)
-        r = self.client.post(reverse('ticket_update', args=[t.pk]), {'title': 'Nouveau'})
+        r = self.client.post(
+            reverse('ticket_update', args=[t.pk]), {'title': 'Nouveau'})
         self.assertRedirects(r, reverse('posts'))
         t.refresh_from_db()
         self.assertEqual(t.title, 'Nouveau')
 
     def test_modification_et_suppression_interdites_sur_billet_d_autrui(self):
         t = Ticket.objects.create(title='Autrui', user=self.b)
-        self.assertEqual(self.client.get(reverse('ticket_update', args=[t.pk])).status_code, 404)
-        self.assertEqual(self.client.post(reverse('ticket_update', args=[t.pk]), {'title': 'X'}).status_code, 404)
-        self.assertEqual(self.client.post(reverse('ticket_delete', args=[t.pk])).status_code, 404)
+        update_url = reverse('ticket_update', args=[t.pk])
+        delete_url = reverse('ticket_delete', args=[t.pk])
+        self.assertEqual(self.client.get(update_url).status_code, 404)
+        r = self.client.post(update_url, {'title': 'X'})
+        self.assertEqual(r.status_code, 404)
+        self.assertEqual(self.client.post(delete_url).status_code, 404)
         t.refresh_from_db()
         self.assertEqual(t.title, 'Autrui')
 
     def test_suppression_uniquement_en_post(self):
         t = Ticket.objects.create(title='T', user=self.a)
-        r = self.client.get(reverse('ticket_delete', args=[t.pk]))
-        self.assertEqual(r.status_code, 200)       # simple page de confirmation
+        url = reverse('ticket_delete', args=[t.pk])
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)  # simple page de confirmation
         self.assertTrue(Ticket.objects.filter(pk=t.pk).exists())
-        r = self.client.post(reverse('ticket_delete', args=[t.pk]))
+        r = self.client.post(url)
         self.assertRedirects(r, reverse('posts'))
         self.assertFalse(Ticket.objects.filter(pk=t.pk).exists())
 
@@ -147,99 +182,135 @@ class ReviewViewsTests(ViewsBase):
         super().setUp()
         self.ticket_b = Ticket.objects.create(title='Billet de b', user=self.b)
         self.data = {'headline': 'Super', 'rating': 5, 'body': 'Génial'}
+        self.create_url = reverse('review_create', args=[self.ticket_b.pk])
 
     def test_pas_de_reponse_si_on_ne_suit_pas(self):
-        r = self.client.post(reverse('review_create', args=[self.ticket_b.pk]), self.data)
+        r = self.client.post(self.create_url, self.data)
         self.assertRedirects(r, reverse('home'))
         self.assertEqual(Review.objects.count(), 0)
 
     def test_reponse_si_on_suit(self):
         UserFollows.objects.create(user=self.a, followed_user=self.b)
-        self.assertEqual(self.client.get(reverse('review_create', args=[self.ticket_b.pk])).status_code, 200)
-        r = self.client.post(reverse('review_create', args=[self.ticket_b.pk]), self.data)
+        self.assertEqual(self.client.get(self.create_url).status_code, 200)
+        r = self.client.post(self.create_url, self.data)
         self.assertRedirects(r, reverse('posts'))
         review = Review.objects.get()
-        self.assertEqual((review.user, review.ticket, review.rating), (self.a, self.ticket_b, 5))
+        self.assertEqual(
+            (review.user, review.ticket, review.rating),
+            (self.a, self.ticket_b, 5)
+        )
 
     def test_une_seule_critique_par_billet_et_par_utilisateur(self):
         UserFollows.objects.create(user=self.a, followed_user=self.b)
-        self.client.post(reverse('review_create', args=[self.ticket_b.pk]), self.data)
-        self.client.post(reverse('review_create', args=[self.ticket_b.pk]), self.data)
+        self.client.post(self.create_url, self.data)
+        self.client.post(self.create_url, self.data)
         self.assertEqual(Review.objects.count(), 1)
 
     def test_note_invalide(self):
         UserFollows.objects.create(user=self.a, followed_user=self.b)
         for bad in (6, -1, 'x', ''):
-            r = self.client.post(reverse('review_create', args=[self.ticket_b.pk]), {**self.data, 'rating': bad})
+            r = self.client.post(
+                self.create_url, {**self.data, 'rating': bad})
             self.assertEqual(r.status_code, 200, bad)
         self.assertEqual(Review.objects.count(), 0)
 
     def test_modifier_et_supprimer_sa_critique(self):
-        rev = Review.objects.create(ticket=self.ticket_b, rating=2, headline='Bof', user=self.a)
-        r = self.client.post(reverse('review_update', args=[rev.pk]), {'headline': 'Mieux', 'rating': 4})
+        rev = Review.objects.create(
+            ticket=self.ticket_b, rating=2, headline='Bof', user=self.a)
+        r = self.client.post(
+            reverse('review_update', args=[rev.pk]),
+            {'headline': 'Mieux', 'rating': 4}
+        )
         self.assertRedirects(r, reverse('posts'))
         rev.refresh_from_db()
         self.assertEqual((rev.headline, rev.rating), ('Mieux', 4))
-        self.assertEqual(self.client.get(reverse('review_delete', args=[rev.pk])).status_code, 200)
+        delete_url = reverse('review_delete', args=[rev.pk])
+        self.assertEqual(self.client.get(delete_url).status_code, 200)
         self.assertEqual(Review.objects.count(), 1)
-        self.client.post(reverse('review_delete', args=[rev.pk]))
+        self.client.post(delete_url)
         self.assertEqual(Review.objects.count(), 0)
 
     def test_critique_d_autrui_intouchable(self):
-        rev = Review.objects.create(ticket=self.ticket_b, rating=2, headline='De b', user=self.b)
+        rev = Review.objects.create(
+            ticket=self.ticket_b, rating=2, headline='De b', user=self.b)
         for name in ('review_update', 'review_delete'):
-            self.assertEqual(self.client.get(reverse(name, args=[rev.pk])).status_code, 404)
-            self.assertEqual(self.client.post(reverse(name, args=[rev.pk]), {'headline': 'X', 'rating': 1}).status_code, 404)
+            url = reverse(name, args=[rev.pk])
+            self.assertEqual(self.client.get(url).status_code, 404)
+            r = self.client.post(url, {'headline': 'X', 'rating': 1})
+            self.assertEqual(r.status_code, 404)
         self.assertEqual(Review.objects.get().headline, 'De b')
 
 
 class ReviewCreateFullTests(ViewsBase):
     def data(self, **kw):
-        d = {'ticket-title': 'Livre', 'ticket-description': 'D',
-             'review-headline': 'Top', 'review-rating': 5, 'review-body': ''}
+        d = {
+            'ticket-title': 'Livre',
+            'ticket-description': 'D',
+            'review-headline': 'Top',
+            'review-rating': 5,
+            'review-body': '',
+        }
         d.update(kw)
         return d
 
     def test_page_accessible_et_protegee(self):
-        self.assertEqual(self.client.get(reverse('review_create_full')).status_code, 200)
+        url = reverse('review_create_full')
+        self.assertEqual(self.client.get(url).status_code, 200)
         self.client.logout()
-        self.assertEqual(self.client.get(reverse('review_create_full')).status_code, 302)
+        self.assertEqual(self.client.get(url).status_code, 302)
 
     def test_cree_billet_et_critique(self):
         r = self.client.post(reverse('review_create_full'), self.data())
         self.assertRedirects(r, reverse('posts'))
         ticket, review = Ticket.objects.get(), Review.objects.get()
-        self.assertEqual((ticket.user, review.user, review.ticket), (self.a, self.a, ticket))
+        self.assertEqual(
+            (ticket.user, review.user, review.ticket),
+            (self.a, self.a, ticket)
+        )
         self.assertFalse(ticket.is_request)  # pas une demande de critique
 
     def test_rien_n_est_cree_si_un_formulaire_est_invalide(self):
-        r = self.client.post(reverse('review_create_full'), self.data(**{'review-rating': 9}))
+        url = reverse('review_create_full')
+        r = self.client.post(url, self.data(**{'review-rating': 9}))
         self.assertEqual(r.status_code, 200)
-        r = self.client.post(reverse('review_create_full'), self.data(**{'ticket-title': ''}))
+        r = self.client.post(url, self.data(**{'ticket-title': ''}))
         self.assertEqual(r.status_code, 200)
-        self.assertEqual((Ticket.objects.count(), Review.objects.count()), (0, 0))
+        self.assertEqual((Ticket.objects.count(), Review.objects.count()),
+                         (0, 0))
 
 
 class AuteurEtCritiqueSansDemandeTests(ViewsBase):
     def full(self, **kw):
-        d = {'ticket-title': 'Livre', 'ticket-author': 'Moi', 'ticket-description': '',
-             'review-headline': 'Top', 'review-rating': 5, 'review-body': ''}
+        d = {
+            'ticket-title': 'Livre',
+            'ticket-author': 'Moi',
+            'ticket-description': '',
+            'review-headline': 'Top',
+            'review-rating': 5,
+            'review-body': '',
+        }
         d.update(kw)
         return d
 
     def test_auteur_enregistre_sur_un_billet(self):
-        self.client.post(reverse('ticket_create'), {'title': 'La relativité', 'author': 'Albert Einstein'})
+        self.client.post(
+            reverse('ticket_create'),
+            {'title': 'La relativité', 'author': 'Albert Einstein'}
+        )
         t = Ticket.objects.get()
         self.assertEqual(t.author, 'Albert Einstein')
         self.assertTrue(t.is_request)
 
     def test_auteur_facultatif(self):
-        r = self.client.post(reverse('ticket_create'), {'title': 'Sans auteur'})
+        r = self.client.post(
+            reverse('ticket_create'), {'title': 'Sans auteur'})
         self.assertRedirects(r, reverse('posts'))
 
     def test_auteur_affiche(self):
-        Ticket.objects.create(title='La relativité', author='Albert Einstein', user=self.a)
-        self.assertContains(self.client.get(reverse('posts')), 'de Albert Einstein')
+        Ticket.objects.create(
+            title='La relativité', author='Albert Einstein', user=self.a)
+        r = self.client.get(reverse('posts'))
+        self.assertContains(r, 'de Albert Einstein')
 
     def test_critique_seule_n_apparait_pas_comme_demande(self):
         self.client.post(reverse('review_create_full'), self.full())
@@ -252,7 +323,8 @@ class AuteurEtCritiqueSansDemandeTests(ViewsBase):
 
     def test_vraie_demande_toujours_affichee(self):
         Ticket.objects.create(title='Demande', user=self.a)
-        self.assertContains(self.client.get(reverse('posts')), 'demandé une critique')
+        r = self.client.get(reverse('posts'))
+        self.assertContains(r, 'demandé une critique')
 
     def test_on_ne_peut_pas_repondre_a_une_critique_seule(self):
         self.client.post(reverse('review_create_full'), self.full())
@@ -260,8 +332,10 @@ class AuteurEtCritiqueSansDemandeTests(ViewsBase):
         self.client.logout()
         self.client.force_login(self.b)
         UserFollows.objects.create(user=self.b, followed_user=self.a)
-        r = self.client.post(reverse('review_create', args=[ticket.pk]),
-                             {'headline': 'x', 'rating': 3})
+        r = self.client.post(
+            reverse('review_create', args=[ticket.pk]),
+            {'headline': 'x', 'rating': 3}
+        )
         self.assertRedirects(r, reverse('home'))
         self.assertEqual(Review.objects.count(), 1)
 
@@ -270,21 +344,32 @@ class AuteurEtCritiqueSansDemandeTests(ViewsBase):
         review = Review.objects.get()
         url = reverse('review_update', args=[review.pk])
         self.assertContains(self.client.get(url), 'Auteur')
-        r = self.client.post(url, {'ticket-title': 'Livre 2', 'ticket-author': 'Autre',
-                                   'review-headline': 'Top 2', 'review-rating': 3, 'review-body': ''})
+        r = self.client.post(url, {
+            'ticket-title': 'Livre 2',
+            'ticket-author': 'Autre',
+            'review-headline': 'Top 2',
+            'review-rating': 3,
+            'review-body': '',
+        })
         self.assertRedirects(r, reverse('posts'))
-        review.refresh_from_db(); review.ticket.refresh_from_db()
+        review.refresh_from_db()
+        review.ticket.refresh_from_db()
         self.assertEqual((review.headline, review.rating), ('Top 2', 3))
-        self.assertEqual((review.ticket.title, review.ticket.author), ('Livre 2', 'Autre'))
+        self.assertEqual(
+            (review.ticket.title, review.ticket.author),
+            ('Livre 2', 'Autre')
+        )
 
     def test_supprimer_une_critique_seule_supprime_le_livre(self):
         self.client.post(reverse('review_create_full'), self.full())
         review = Review.objects.get()
         self.client.post(reverse('review_delete', args=[review.pk]))
-        self.assertEqual((Review.objects.count(), Ticket.objects.count()), (0, 0))
+        self.assertEqual((Review.objects.count(), Ticket.objects.count()),
+                         (0, 0))
 
     def test_supprimer_une_reponse_garde_le_billet(self):
         t = Ticket.objects.create(title='Billet', user=self.b)
-        rev = Review.objects.create(ticket=t, rating=3, headline='x', user=self.a)
+        rev = Review.objects.create(
+            ticket=t, rating=3, headline='x', user=self.a)
         self.client.post(reverse('review_delete', args=[rev.pk]))
         self.assertEqual(Ticket.objects.count(), 1)

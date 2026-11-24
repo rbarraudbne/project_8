@@ -27,18 +27,25 @@ class AuthFlowTests(TestCase):
 
     def test_connexion_deconnexion(self):
         User.objects.create_user('rachelle', password=PWD)
-        r = self.client.post(reverse('login'), {'username': 'rachelle', 'password': PWD})
+        r = self.client.post(
+            reverse('login'),
+            {'username': 'rachelle', 'password': PWD}
+        )
         self.assertRedirects(r, reverse('home'))
         r = self.client.post(reverse('logout'))
         self.assertRedirects(r, reverse('login'))
 
     def test_mauvais_mot_de_passe(self):
         User.objects.create_user('rachelle', password=PWD)
-        r = self.client.post(reverse('login'), {'username': 'rachelle', 'password': 'x'})
+        r = self.client.post(
+            reverse('login'),
+            {'username': 'rachelle', 'password': 'x'}
+        )
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'role="alert"')
 
     def test_admin(self):
         User.objects.create_superuser('admin', 'a@ex.fr', PWD)
         self.client.login(username='admin', password=PWD)
-        self.assertEqual(self.client.get('/admin/authentication/user/').status_code, 200)
+        r = self.client.get('/admin/authentication/user/')
+        self.assertEqual(r.status_code, 200)

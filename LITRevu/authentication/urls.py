@@ -15,4 +15,3 @@ urlpatterns = [
     path('deconnexion/', LogoutView.as_view(), name='logout'),
     path('inscription/', views.signup, name='signup'),
 ]
-

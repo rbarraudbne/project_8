@@ -31,7 +31,9 @@ class Migration(migrations.Migration):
                 ("description", models.TextField(blank=True, max_length=2048)),
                 (
                     "image",
-                    models.ImageField(blank=True, null=True, upload_to="tickets/"),
+                    models.ImageField(
+                        blank=True, null=True, upload_to="tickets/"
+                    ),
                 ),
                 ("time_created", models.DateTimeField(auto_now_add=True)),
                 (
@@ -77,7 +79,8 @@ class Migration(migrations.Migration):
                 (
                     "ticket",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE, to="reviews.ticket"
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="reviews.ticket",
                     ),
                 ),
             ],

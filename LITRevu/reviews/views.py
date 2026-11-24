@@ -14,9 +14,11 @@ from .models import Review, Ticket, UserFollows
 def can_review(user, ticket):
     """Peut-on répondre à ce billet ?
 
-    - c'est une vraie demande de critique (pas un livre saisi avec une critique) ;
+    - c'est une vraie demande de critique (pas un livre saisi avec une
+      critique) ;
     - c'est mon billet, ou celui d'un utilisateur que je suis ;
-    - aucune critique n'a encore été postée en réponse à ce billet (par personne).
+    - aucune critique n'a encore été postée en réponse à ce billet
+      (par personne).
     """
     if not ticket.is_request:
         return False
@@ -30,13 +32,17 @@ def can_review(user, ticket):
 def posts(request):
     """Mes billets et mes critiques, du plus récent au plus ancien."""
     tickets = Ticket.objects.filter(user=request.user, is_request=True)
-    reviews = Review.objects.filter(user=request.user).select_related('ticket', 'ticket__user')
+    reviews = (Review.objects
+               .filter(user=request.user)
+               .select_related('ticket', 'ticket__user'))
     items = sorted(
         chain(
             ((t.time_created, 'ticket', t) for t in tickets),
             ((r.time_created, 'review', r) for r in reviews),
         ),
-        key=lambda item: item[0], reverse=True)
+        key=lambda item: item[0],
+        reverse=True,
+    )
     return render(request, 'reviews/posts.html', {'items': items})
 
 
@@ -51,19 +57,29 @@ def ticket_create(request):
         ticket.save()
         messages.success(request, 'Votre billet a été publié.')
         return redirect('posts')
-    return render(request, 'reviews/ticket_form.html', {'form': form, 'edit': False})
+    return render(
+        request,
+        'reviews/ticket_form.html',
+        {'form': form, 'edit': False},
+    )
 
 
 @login_required
 def ticket_update(request, ticket_id):
-    # user=request.user : on ne peut modifier que ses propres billets (404 sinon)
+    # user=request.user : on ne peut modifier que ses propres billets
+    # (404 sinon)
     ticket = get_object_or_404(Ticket, pk=ticket_id, user=request.user)
-    form = TicketForm(request.POST or None, request.FILES or None, instance=ticket)
+    form = TicketForm(
+        request.POST or None, request.FILES or None, instance=ticket)
     if request.method == 'POST' and form.is_valid():
         form.save()
         messages.success(request, 'Votre billet a été modifié.')
         return redirect('posts')
-    return render(request, 'reviews/ticket_form.html', {'form': form, 'edit': True, 'ticket': ticket})
+    return render(
+        request,
+        'reviews/ticket_form.html',
+        {'form': form, 'edit': True, 'ticket': ticket},
+    )
 
 
 @login_required
@@ -73,7 +89,8 @@ def ticket_delete(request, ticket_id):
         ticket.delete()
         messages.success(request, 'Votre billet a été supprimé.')
         return redirect('posts')
-    return render(request, 'reviews/ticket_confirm_delete.html', {'ticket': ticket})
+    return render(
+        request, 'reviews/ticket_confirm_delete.html', {'ticket': ticket})
 
 
 # --- Critiques ---------------------------------------------------------
@@ -92,7 +109,11 @@ def review_create(request, ticket_id):
         review.save()
         messages.success(request, 'Votre critique a été publiée.')
         return redirect('posts')
-    return render(request, 'reviews/review_form.html', {'form': form, 'ticket': ticket, 'edit': False})
+    return render(
+        request,
+        'reviews/review_form.html',
+        {'form': form, 'ticket': ticket, 'edit': False},
+    )
 
 
 @login_required
@@ -107,21 +128,39 @@ def review_update(request, review_id):
         form.save()
         messages.success(request, 'Votre critique a été modifiée.')
         return redirect('posts')
-    return render(request, 'reviews/review_form.html', {'form': form, 'ticket': ticket, 'edit': True})
+    return render(
+        request,
+        'reviews/review_form.html',
+        {'form': form, 'ticket': ticket, 'edit': True},
+    )
 
 
 def _review_update_full(request, review, ticket):
-    ticket_form = TicketForm(request.POST or None, request.FILES or None,
-                             instance=ticket, prefix='ticket')
-    review_form = ReviewForm(request.POST or None, instance=review, prefix='review')
-    if request.method == 'POST' and ticket_form.is_valid() and review_form.is_valid():
+    ticket_form = TicketForm(
+        request.POST or None,
+        request.FILES or None,
+        instance=ticket,
+        prefix='ticket',
+    )
+    review_form = ReviewForm(
+        request.POST or None, instance=review, prefix='review')
+    if (request.method == 'POST'
+            and ticket_form.is_valid()
+            and review_form.is_valid()):
         with transaction.atomic():
             ticket_form.save()
             review_form.save()
         messages.success(request, 'Votre critique a été modifiée.')
         return redirect('posts')
-    return render(request, 'reviews/review_create_full.html', {
-        'ticket_form': ticket_form, 'review_form': review_form, 'edit': True})
+    return render(
+        request,
+        'reviews/review_create_full.html',
+        {
+            'ticket_form': ticket_form,
+            'review_form': review_form,
+            'edit': True,
+        },
+    )
 
 
 @login_required
@@ -131,18 +170,23 @@ def review_delete(request, review_id):
         ticket = review.ticket
         review.delete()
         if not ticket.is_request:
-            ticket.delete()  # le livre saisi avec la critique n'a plus de raison d'exister
+            # le livre saisi avec la critique n'a plus de raison d'exister
+            ticket.delete()
         messages.success(request, 'Votre critique a été supprimée.')
         return redirect('posts')
-    return render(request, 'reviews/review_confirm_delete.html', {'review': review})
+    return render(
+        request, 'reviews/review_confirm_delete.html', {'review': review})
 
 
 @login_required
 def review_create_full(request):
     """Crée un billet ET une critique sur ce billet en une seule étape."""
-    ticket_form = TicketForm(request.POST or None, request.FILES or None, prefix='ticket')
+    ticket_form = TicketForm(
+        request.POST or None, request.FILES or None, prefix='ticket')
     review_form = ReviewForm(request.POST or None, prefix='review')
-    if request.method == 'POST' and ticket_form.is_valid() and review_form.is_valid():
+    if (request.method == 'POST'
+            and ticket_form.is_valid()
+            and review_form.is_valid()):
         with transaction.atomic():  # tout ou rien
             ticket = ticket_form.save(commit=False)
             ticket.user = request.user
@@ -154,8 +198,15 @@ def review_create_full(request):
             review.save()
         messages.success(request, 'Votre critique a été publiée.')
         return redirect('posts')
-    return render(request, 'reviews/review_create_full.html', {
-        'ticket_form': ticket_form, 'review_form': review_form, 'edit': False})
+    return render(
+        request,
+        'reviews/review_create_full.html',
+        {
+            'ticket_form': ticket_form,
+            'review_form': review_form,
+            'edit': False,
+        },
+    )
 
 
 # --- Abonnements -------------------------------------------------------
@@ -165,15 +216,26 @@ def follows(request):
     """Suivre un utilisateur, voir ses abonnements et ses abonnés."""
     form = FollowForm(request.POST or None, user=request.user)
     if request.method == 'POST' and form.is_valid():
-        UserFollows.objects.create(user=request.user, followed_user=form.followed_user)
-        messages.success(request, f'Vous suivez maintenant {form.followed_user.username}.')
+        UserFollows.objects.create(
+            user=request.user, followed_user=form.followed_user)
+        messages.success(
+            request,
+            f'Vous suivez maintenant {form.followed_user.username}.',
+        )
         return redirect('follows')
-    following = (UserFollows.objects.filter(user=request.user)
-                 .select_related('followed_user').order_by('followed_user__username'))
-    followers = (UserFollows.objects.filter(followed_user=request.user)
-                 .select_related('user').order_by('user__username'))
-    return render(request, 'reviews/follows.html', {
-        'form': form, 'following': following, 'followers': followers})
+    following = (UserFollows.objects
+                 .filter(user=request.user)
+                 .select_related('followed_user')
+                 .order_by('followed_user__username'))
+    followers = (UserFollows.objects
+                 .filter(followed_user=request.user)
+                 .select_related('user')
+                 .order_by('user__username'))
+    return render(
+        request,
+        'reviews/follows.html',
+        {'form': form, 'following': following, 'followers': followers},
+    )
 
 
 @login_required
@@ -182,7 +244,8 @@ def unfollow(request, follow_id):
     # user=request.user : on ne peut supprimer que ses propres abonnements
     follow = get_object_or_404(UserFollows, pk=follow_id, user=request.user)
     follow.delete()
-    messages.success(request, f'Vous ne suivez plus {follow.followed_user.username}.')
+    messages.success(
+        request, f'Vous ne suivez plus {follow.followed_user.username}.')
     return redirect('follows')
 
 
@@ -190,31 +253,42 @@ def unfollow(request, follow_id):
 
 @login_required
 def feed(request):
-    """Page d'accueil : billets et critiques à afficher pour l'utilisateur connecté.
+    """Page d'accueil : billets et critiques de l'utilisateur connecté.
 
     - billets (demandes) : les miens et ceux des utilisateurs que je suis ;
-    - critiques : les miennes, celles des utilisateurs que je suis, et toutes
-      celles qui répondent à l'un de mes billets (même d'un utilisateur non suivi).
+    - critiques : les miennes, celles des utilisateurs que je suis, et
+      toutes celles qui répondent à l'un de mes billets (même d'un
+      utilisateur non suivi).
     Le tout du plus récent au plus ancien.
     """
     me = request.user
-    followed_ids = UserFollows.objects.filter(user=me).values_list('followed_user_id', flat=True)
+    followed_ids = (UserFollows.objects
+                    .filter(user=me)
+                    .values_list('followed_user_id', flat=True))
 
     tickets = (Ticket.objects
                .filter(is_request=True)
                .filter(Q(user=me) | Q(user_id__in=followed_ids))
                .select_related('user'))
     reviews = (Review.objects
-               .filter(Q(user=me) | Q(user_id__in=followed_ids) | Q(ticket__user=me))
+               .filter(Q(user=me)
+                       | Q(user_id__in=followed_ids)
+                       | Q(ticket__user=me))
                .select_related('user', 'ticket', 'ticket__user'))
 
     # billets qui ont déjà reçu au moins une critique (de n'importe qui)
     already_reviewed = set(
-        Review.objects.filter(ticket__in=tickets).values_list('ticket_id', flat=True))
+        Review.objects
+        .filter(ticket__in=tickets)
+        .values_list('ticket_id', flat=True)
+    )
     items = sorted(
         chain(
-            ((t.time_created, 'ticket', t, t.pk not in already_reviewed) for t in tickets),
+            ((t.time_created, 'ticket', t, t.pk not in already_reviewed)
+             for t in tickets),
             ((r.time_created, 'review', r, False) for r in reviews),
         ),
-        key=lambda item: item[0], reverse=True)
+        key=lambda item: item[0],
+        reverse=True,
+    )
     return render(request, 'reviews/feed.html', {'items': items})

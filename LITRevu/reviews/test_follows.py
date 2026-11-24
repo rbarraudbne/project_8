@@ -16,17 +16,20 @@ class FollowsTests(TestCase):
     def test_page_protegee(self):
         self.client.logout()
         r = self.client.get(reverse('follows'))
-        self.assertRedirects(r, f"{reverse('login')}?next={reverse('follows')}")
+        login = reverse('login')
+        self.assertRedirects(r, f"{login}?next={reverse('follows')}")
 
     def test_suivre_un_utilisateur(self):
         r = self.client.post(reverse('follows'), {'username': 'b'})
         self.assertRedirects(r, reverse('follows'))
-        self.assertTrue(UserFollows.objects.filter(user=self.a, followed_user=self.b).exists())
+        self.assertTrue(UserFollows.objects.filter(
+            user=self.a, followed_user=self.b).exists())
 
     def test_utilisateur_inexistant_affiche_un_message(self):
         r = self.client.post(reverse('follows'), {'username': 'fantome'})
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "L&#x27;utilisateur « fantome » n&#x27;existe pas")
+        self.assertContains(
+            r, "L&#x27;utilisateur « fantome » n&#x27;existe pas")
         self.assertContains(r, 'role="alert"')
         self.assertEqual(UserFollows.objects.count(), 0)
 
@@ -46,19 +49,23 @@ class FollowsTests(TestCase):
         c = User.objects.create_user('c', password='x')
         UserFollows.objects.create(user=c, followed_user=self.a)
         r = self.client.get(reverse('follows'))
-        self.assertEqual([f.followed_user for f in r.context['following']], [self.b])
-        self.assertEqual([f.user for f in r.context['followers']], [c])
+        following = [f.followed_user for f in r.context['following']]
+        followers = [f.user for f in r.context['followers']]
+        self.assertEqual(following, [self.b])
+        self.assertEqual(followers, [c])
 
     def test_desabonnement_en_post_uniquement(self):
         f = UserFollows.objects.create(user=self.a, followed_user=self.b)
-        self.assertEqual(self.client.get(reverse('unfollow', args=[f.pk])).status_code, 405)
+        url = reverse('unfollow', args=[f.pk])
+        self.assertEqual(self.client.get(url).status_code, 405)
         self.assertTrue(UserFollows.objects.filter(pk=f.pk).exists())
-        r = self.client.post(reverse('unfollow', args=[f.pk]))
+        r = self.client.post(url)
         self.assertRedirects(r, reverse('follows'))
         self.assertFalse(UserFollows.objects.filter(pk=f.pk).exists())
 
     def test_on_ne_supprime_pas_l_abonnement_d_un_autre(self):
         c = User.objects.create_user('c', password='x')
         f = UserFollows.objects.create(user=self.b, followed_user=c)
-        self.assertEqual(self.client.post(reverse('unfollow', args=[f.pk])).status_code, 404)
+        r = self.client.post(reverse('unfollow', args=[f.pk]))
+        self.assertEqual(r.status_code, 404)
         self.assertTrue(UserFollows.objects.filter(pk=f.pk).exists())

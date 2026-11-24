@@ -6,7 +6,8 @@ register = template.Library()
 
 @register.filter
 def stars(rating):
-    """Affiche une note sous forme d'étoiles, avec un texte pour les lecteurs d'écran."""
+    """Affiche une note sous forme d'étoiles,
+    avec un texte pour les lecteurs d'écran."""
     rating = int(rating)
     return format_html(
         '<span class="stars"><span aria-hidden="true">{}{}</span>'

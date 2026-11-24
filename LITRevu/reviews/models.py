@@ -6,8 +6,9 @@ from django.db import models
 class Ticket(models.Model):
     """Livre ou article.
 
-    Si ``is_request`` est vrai, c'est un billet : une demande de critique visible
-    par les abonnés. Sinon, le livre/article a été créé en même temps qu'une
+    Si ``is_request`` est vrai, c'est un billet :
+    une demande de critique visible par les abonnés.
+    Sinon, le livre/article a été créé en même temps qu'une
     critique « à partir de zéro » et n'est pas affiché comme une demande.
     """
 
