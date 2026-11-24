@@ -1,6 +1,6 @@
 # LITRevu
  
-Application web Django permettant de **demander** et de **publier des critiques** de livres et d'articles, et de suivre d'autres utilisateurs pour voir leurs publications.
+LIT Revu est une application web Django permettant de **demander** et de **publier des critiques** de livres et d'articles, et également de suivre d'autres utilisateurs pour voir leurs publications et leurs demandent.
  
 Projet OpenClassrooms : *Développez une application web en utilisant Django*.
  
@@ -8,7 +8,7 @@ Projet OpenClassrooms : *Développez une application web en utilisant Django*.
  
 - **Inscription, connexion et déconnexion** (modèle utilisateur personnalisé).
 - **Billets** : demander une critique sur un livre ou un article (titre, auteur, description, image facultative). Les billets peuvent être modifiés et supprimés par leur auteur.
-- **Critiques** : répondre à un billet (titre, note de 0 à 5, commentaire), ou publier une critique de son propre chef, sans demande préalable. Modification et suppression par l'auteur.
+- **Critiques** : répondre à un billet (titre, note de 0 à 5, commentaire), ou publier une critique sans demande préalable. De même que les billets, les critiques peuvent être modifiées et supprimées par leur auteur.
 - **Abonnements** : suivre un utilisateur grâce à son nom d'utilisateur, voir ses abonnements et ses abonnés, se désabonner.
 - **Flux** : page d'accueil qui rassemble, du plus récent au plus ancien :
   - les billets et critiques de l'utilisateur connecté ;
@@ -42,8 +42,6 @@ pip install -r requirements.txt
 ```bash
 python manage.py migrate
 ```
- 
-   > Si le dépôt contient déjà un fichier `db.sqlite3`, cette commande suffit à le mettre à jour.
  
 5. (Facultatif) Créer un compte administrateur pour accéder à `/admin/` :
 ```bash
@@ -101,7 +99,7 @@ Le modèle utilisateur est `authentication.User` (`AUTH_USER_MODEL`).
 ## Choix de conception
  
 - Le champ `author` (auteur du livre ou de l'article) a été ajouté à `Ticket`.
-- Une critique publiée sans demande préalable crée tout de même un `Ticket`, car une critique est toujours liée à un billet. Ce billet est marqué `is_request = False` : il n'apparaît pas comme une demande de critique et personne ne peut y répondre. Il est supprimé avec sa critique.
+- Une critique publiée sans demande préalable crée tout de même un `Ticket`, car une critique est toujours liée à un billet. Ce billet est marqué `is_request = False` : il n'apparaît pas comme une demande de critique et personne ne peut y répondre. Il est supprimé automatiquement si la critique vient à être supprimée.
 - On ne peut répondre qu'aux billets de l'utilisateur connecté ou des utilisateurs qu'il suit, et une seule fois par billet.
 - Les suppressions se font uniquement par requête `POST`, et seul le propriétaire peut modifier ou supprimer ses billets et ses critiques.
 ## Accessibilité
